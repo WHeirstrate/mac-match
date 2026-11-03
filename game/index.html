@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Encore! Match Tour</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="play" class="hidden">
+  <header id="hud">
+    <div class="hud-row">
+      <button id="btn-pause" class="icon-btn" title="Pause (Esc)">❚❚</button>
+      <div id="level-title">Gig 1</div>
+      <button id="btn-mute" class="icon-btn" title="Sound (M)">🔊</button>
+    </div>
+    <div class="hud-row panels">
+      <div class="panel moves"><div class="lbl" id="moves-lbl">MOVES</div><div id="moves">20</div></div>
+      <div class="panel goals-panel"><div class="lbl">GOALS</div><div id="goals"></div></div>
+    </div>
+    <div class="scorebar">
+      <div id="score">0</div>
+      <div class="track"><div id="star-fill"></div><span class="mark" id="m1">★</span><span class="mark" id="m2">★</span><span class="mark" id="m3">★</span></div>
+    </div>
+    <div class="hype"><span class="lbl">HYPE</span><div class="track"><div id="hype-fill"></div></div><span id="encore-badge" class="hidden">ENCORE ×2</span></div>
+  </header>
+  <footer id="boosters">
+    <button class="booster" data-b="hammer" title="Smash one tile or obstacle"><span class="ic">🥁</span><span class="nm">Drumstick</span><span class="ct"></span></button>
+    <button class="booster" data-b="pyro" title="Drop a pyro bomb anywhere"><span class="ic">💥</span><span class="nm">Pyro</span><span class="ct"></span></button>
+    <button class="booster" data-b="shuffle" title="Remix the board"><span class="ic">🔀</span><span class="nm">Remix</span><span class="ct"></span></button>
+  </footer>
+</div>
+
+<div id="menu" class="screen hidden">
+  <div class="logo"><span>ENCORE!</span><small>a match-3 world tour</small></div>
+  <button id="continue" class="big-play">▶ Play</button>
+  <div class="modes">
+    <button id="btn-daily" class="mode-btn"><b>🎲 Daily Gig</b><small id="daily-sub">A fresh stage every day</small></button>
+    <button id="btn-jam" class="mode-btn"><b>⏱ Jam Session</b><small id="jam-sub">60-second score blitz</small></button>
+  </div>
+  <div id="tour"></div>
+  <div class="foot"><button id="btn-howto" class="link">How to play</button> · No ads, no timers, no lives. 🤘</div>
+</div>
+
+<div id="modal" class="hidden"><div class="card" id="modal-card"></div></div>
+
+<script src="levels.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
