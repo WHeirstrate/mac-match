@@ -1,12 +1,33 @@
 import Cocoa
 import WebKit
 
-/// A tiny native shell: one small window hosting the HTML5 game, with saves written to Application Support.
+/// A tiny native shell: one small window hosting the HTML5 game, with saves written to Application Support
+/// (outside the .app, so rebuilding never touches progress).
 final class SaveBridge: NSObject, WKScriptMessageHandler {
     let url: URL
-    init(url: URL) { self.url = url }
+    let backupURL: URL
+    init(url: URL) {
+        self.url = url
+        self.backupURL = url.deletingLastPathComponent().appendingPathComponent("save.backup.json")
+    }
+
+    /// Returns the file's JSON text, or nil if it is missing or damaged.
+    static func validJSON(at url: URL) -> String? {
+        guard let data = try? Data(contentsOf: url), (try? JSONSerialization.jsonObject(with: data)) != nil else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard let json = message.body as? String else { return }
+        if message.name == "reveal" {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+            return
+        }
+        guard let json = message.body as? String, (try? JSONSerialization.jsonObject(with: Data(json.utf8))) != nil else { return }
+        // keep the last good save as a backup before replacing it
+        if SaveBridge.validJSON(at: url) != nil {
+            try? FileManager.default.removeItem(at: backupURL)
+            try? FileManager.default.copyItem(at: url, to: backupURL)
+        }
         try? json.write(to: url, atomically: true, encoding: .utf8)
     }
 }
@@ -25,12 +46,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let config = WKWebViewConfiguration()
         config.mediaTypesRequiringUserActionForPlayback = []
         config.userContentController.add(bridge, name: "save")
-        if let data = try? Data(contentsOf: saveURL),
-           (try? JSONSerialization.jsonObject(with: data)) != nil,
-           let json = String(data: data, encoding: .utf8) {
-            let script = WKUserScript(source: "window.__ENCORE_SAVE = \(json);", injectionTime: .atDocumentStart, forMainFrameOnly: true)
-            config.userContentController.addUserScript(script)
-        }
+        config.userContentController.add(bridge, name: "reveal")
+        var boot = "window.__ENCORE_SAVE_PATH = \"~/Library/Application Support/EncoreMatch/save.json\";"
+        if let json = SaveBridge.validJSON(at: saveURL) { boot += "window.__ENCORE_SAVE = \(json);" }
+        if let json = SaveBridge.validJSON(at: bridge.backupURL) { boot += "window.__ENCORE_BACKUP = \(json);" }
+        config.userContentController.addUserScript(WKUserScript(source: boot, injectionTime: .atDocumentStart, forMainFrameOnly: true))
 
         let rect = NSRect(x: 0, y: 0, width: 470, height: 840)
         window = NSWindow(contentRect: rect, styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)

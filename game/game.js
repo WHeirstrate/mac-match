@@ -23,18 +23,29 @@ const fmt = n => Math.round(n).toLocaleString('en-US');
 
 // ============================================================ save data
 const Save = {
-  data: { stars: {}, best: {}, boosters: { hammer: 3, pyro: 2, shuffle: 2, moves: 2 }, muted: false, jamBest: 0, daily: {} },
+  data: { stars: {}, best: {}, boosters: { hammer: 3, pyro: 2, shuffle: 2, moves: 2 }, muted: false, hints: true, jamBest: 0, daily: {} },
+  // Every copy we can find (the Mac app's save file, its backup, browser storage) is merged so
+  // progress only ever goes up: best stars/scores win, settings and boosters come from the newest copy.
   load() {
-    try {
-      const raw = window.__ENCORE_SAVE || localStorage.getItem('encore-save');
-      if (raw) {
-        const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        Object.assign(this.data, d);
-        this.data.boosters = Object.assign({ hammer: 0, pyro: 0, shuffle: 0, moves: 0 }, d.boosters);
-      }
-    } catch (e) { /* fresh start */ }
+    const copies = [];
+    for (const raw of [window.__ENCORE_SAVE, window.__ENCORE_BACKUP, (() => { try { return localStorage.getItem('encore-save'); } catch (e) { return null; } })()]) {
+      try { if (raw) copies.push(typeof raw === 'string' ? JSON.parse(raw) : raw); } catch (e) { /* skip a damaged copy */ }
+    }
+    if (!copies.length) return;
+    copies.sort((a, b) => (a.updated || 0) - (b.updated || 0));
+    const newest = copies[copies.length - 1];
+    Object.assign(this.data, newest);
+    this.data.boosters = Object.assign({ hammer: 0, pyro: 0, shuffle: 0, moves: 0 }, newest.boosters);
+    for (const field of ['stars', 'best', 'daily']) {
+      const merged = {};
+      for (const c of copies) for (const k in c[field] || {}) merged[k] = Math.max(merged[k] || 0, c[field][k]);
+      this.data[field] = merged;
+    }
+    this.data.jamBest = Math.max(0, ...copies.map(c => c.jamBest || 0));
+    this.write();
   },
   write() {
+    this.data.updated = Date.now();
     const s = JSON.stringify(this.data);
     try { localStorage.setItem('encore-save', s); } catch (e) {}
     try { window.webkit.messageHandlers.save.postMessage(s); } catch (e) {}
@@ -813,6 +824,22 @@ function roundRect(c, x, y, w, h, r) {
   c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
 }
 
+// Instrument icon washed towards white: light, but with its detail intact.
+// Drawn at full opacity first (WebKit applies fillStyle alpha to colour emoji).
+const ICON_WASH = 0.5;    // 0 = original colours, 1 = pure white
+const ICON_ALPHA = 0.3;   // how strongly the icon shows on the tile
+function lightGlyph(emoji, ts) {
+  const c = document.createElement('canvas');
+  c.width = c.height = Math.ceil(ts * DPR);
+  const x = c.getContext('2d'); x.scale(DPR, DPR);
+  x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#000';
+  x.font = `${ts * 0.56}px ${EMOJI_FONT}`;
+  x.fillText(emoji, ts / 2, ts * 0.54);
+  x.globalCompositeOperation = 'source-atop';
+  x.fillStyle = `rgba(255,255,255,${ICON_WASH})`; x.fillRect(0, 0, ts, ts);
+  return c;
+}
+
 const spriteCache = new Map();
 function tileSprite(t, ts) {
   const key = `${t.kind}|${t.color}|${t.special}|${ts}`;
@@ -857,11 +884,13 @@ function tileSprite(t, ts) {
     x.restore();
     x.strokeStyle = t.special ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.35)';
     x.lineWidth = ts * (t.special ? 0.055 : 0.03); roundRect(x, p, p, w, w, r); x.stroke();
-    x.font = `${ts * 0.52}px ${EMOJI_FONT}`;
-    x.fillText(col.emoji, ts / 2, ts * 0.54);
+    x.save();
+    x.globalAlpha = ICON_ALPHA;
+    x.drawImage(lightGlyph(col.emoji, ts), 0, 0, ts, ts);
+    x.restore();
     const badge = (emo, bx, by) => {
       x.fillStyle = 'rgba(20,6,40,0.85)'; x.beginPath(); x.arc(bx, by, ts * 0.17, 0, 7); x.fill();
-      x.font = `${ts * 0.22}px ${EMOJI_FONT}`; x.fillText(emo, bx, by + ts * 0.01);
+      x.fillStyle = '#fff'; x.font = `${ts * 0.22}px ${EMOJI_FONT}`; x.fillText(emo, bx, by + ts * 0.01);
     };
     if (t.special === 'lineH' || t.special === 'lineV') {
       x.fillStyle = '#fff';
@@ -964,7 +993,7 @@ function drawBlock(x, y, b) {
     ctx.fillStyle = 'rgba(80,40,160,0.35)'; ctx.fillRect(px, py, ts, ts);
     ctx.restore();
     ctx.strokeStyle = '#9d8cff'; ctx.lineWidth = 2; roundRect(ctx, px + p, py + p, ts - 2 * p, ts - 2 * p, ts * 0.12); ctx.stroke();
-    ctx.font = `${ts * 0.36}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('⚡', px + ts / 2, py + ts / 2);
+    ctx.font = `${ts * 0.36}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText('⚡', px + ts / 2, py + ts / 2);
   }
   ctx.restore();
 }
@@ -997,7 +1026,7 @@ function drawTile(t, alpha = 1, scale = 1) {
       ctx.moveTo(-ts * 0.42, ts * 0.3); ctx.bezierCurveTo(-ts * 0.1, -ts * 0.1, ts * 0.1, ts * 0.2, ts * 0.42, -ts * 0.3);
       ctx.stroke();
     }
-    ctx.font = `${ts * 0.26}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🔌', 0, 0);
+    ctx.font = `${ts * 0.26}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText('🔌', 0, 0);
     ctx.restore();
   }
 }
@@ -1073,7 +1102,7 @@ function drawFX() {
     const x = r.x0 + (r.x1 - r.x0) * e, y = r.y0 + (r.y1 - r.y0) * e - Math.sin(p * Math.PI) * 1.4;
     const nx = r.x0 + (r.x1 - r.x0) * Math.min(1, e + 0.05), ny = r.y0 + (r.y1 - r.y0) * Math.min(1, e + 0.05) - Math.sin(Math.min(1, p + 0.05) * Math.PI) * 1.4;
     ctx.save(); ctx.translate(X(x + 0.5), Y(y + 0.5)); ctx.rotate(Math.atan2(ny - y, nx - x) + Math.PI / 4);
-    ctx.font = `${ts * 0.6}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🚀', 0, 0);
+    ctx.font = `${ts * 0.6}px ${EMOJI_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff'; ctx.fillText('🚀', 0, 0);
     if (r.carry) { ctx.font = `${ts * 0.32}px ${EMOJI_FONT}`; ctx.fillText(SPECIAL_ICON[r.carry] || '✨', -ts * 0.3, ts * 0.3); }
     ctx.restore();
   }
@@ -1125,7 +1154,7 @@ function update(dt) {
     for (const r of G.cells) for (const c of r) if (c.block && c.block.hit > 0) c.block.hit = Math.max(0, c.block.hit - dt * 5);
     if (!G.busy && !G.over && !G.paused) {
       input.idle += dt;
-      if (input.idle > 5 && !input.hint) input.hint = findMove();
+      if (Save.data.hints && input.idle > 5 && !input.hint) input.hint = findMove();
     }
     if (G.mode === 'jam' && G.started && !G.paused && !G.over) {
       G.timeLeft -= dt;
@@ -1339,9 +1368,23 @@ function pauseMenu() {
   if (!G || G.over) return;
   modal(`<h2>Paused</h2>${HOWTO}`, [
     { label: '▶ Resume', cls: 'primary', fn: hideModal },
+    { label: '⚙ Settings', fn: () => settingsMenu(pauseMenu) },
     { label: '↻ Restart', fn: () => startGig(G.def, G.mode) },
     { label: 'Tour map', fn: showMenu },
   ]);
+}
+
+function settingsMenu(back) {
+  const sw = (on) => `<span class="switch ${on ? 'on' : ''}"><i></i></span>`;
+  modal('<h2>Settings</h2>', [
+    { label: `<span>💡 Hints <small>wiggle a possible move when you're idle</small></span>${sw(Save.data.hints)}`, cls: 'setting', fn: () => {
+      Save.data.hints = !Save.data.hints; input.hint = null; Save.write(); settingsMenu(back);
+    } },
+    { label: `<span>🔊 Sound</span>${sw(!Save.data.muted)}`, cls: 'setting', fn: () => { toggleMute(); settingsMenu(back); } },
+    ...(window.__ENCORE_SAVE_PATH ? [{ label: '📂 Show save file', fn: () => { try { window.webkit.messageHandlers.reveal.postMessage(''); } catch (e) {} } }] : []),
+    { label: 'Done', cls: 'primary', fn: back },
+  ]);
+  $('#modal-card h2').insertAdjacentHTML('afterend', `<p class="sub">Progress saves automatically after every gig${window.__ENCORE_SAVE_PATH ? ` to<br><code>${window.__ENCORE_SAVE_PATH}</code>` : ' in this browser'}.</p>`);
 }
 
 const HOWTO = `<div class="howto">
@@ -1401,6 +1444,7 @@ function bindInput() {
   $('#btn-daily').onclick = () => { Sfx.init(); Sfx.click(); openDaily(); };
   $('#btn-jam').onclick = () => { Sfx.init(); Sfx.click(); startGig(jamDef(), 'jam'); };
   $('#continue').onclick = () => { Sfx.init(); Sfx.click(); openGig(Save.highest() + 1); };
+  $('#btn-settings').onclick = () => { Sfx.init(); Sfx.click(); settingsMenu(hideModal); };
   $('#btn-howto').onclick = () => { Sfx.init(); Sfx.click(); modal(`<h2>How to rock</h2>${HOWTO}`, [{ label: 'Got it', cls: 'primary', fn: hideModal }]); };
   document.querySelectorAll('.booster').forEach(el => { el.onclick = () => armBooster(el.dataset.b); });
 }
