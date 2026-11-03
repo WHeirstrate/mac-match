@@ -15,17 +15,17 @@ Controls: drag or click two tiles to swap, click a special twice to fire it wher
 
 | Match | You get | What it does |
 |---|---|---|
-| 4 in a line | 🔦 **Laser** | Clears a full row or column (the stripes show which way) |
+| 4 in a line | ↔ **Laser** | Clears the full row or column its arrow points along |
 | 2×2 square | 🚀 **Rocket** | Hits the 4 tiles around it, then flies to whatever your goals still need |
-| L or T shape | 💥 **Pyro** | Big diamond-shaped blast |
+| L or T shape | 💣 **Bomb** | Big diamond-shaped blast |
 | 5 in a line | 🪩 **Disco ball** | Swap it with a tile to clear every tile of that colour |
 
-**Swap two specials together:** 🔦+🔦 cross · 🔦+💥 triple-wide cross · 💥+💥 mega blast · 🚀+🚀 three rockets ·
-🚀+🔦/💥 the rocket carries that special to its target · 🪩+special turns every tile of that colour into that special and fires them all · 🪩+🪩 clears the whole stage.
+**Swap two specials together:** laser+laser cross · laser+bomb triple-wide cross · bomb+bomb mega blast · 🚀+🚀 three rockets ·
+🚀+laser/bomb the rocket carries that special to its target · 🪩+special turns every tile of that colour into that special and fires them all · 🪩+🪩 clears the whole stage.
 
 ## Goals (each gig has 1–3)
 
-✨ Sweep glitter (one or two layers) · 🧳 Smash flight cases (1 or 2 hits) · 🔌 Cut cables off locked tiles ·
+✨ Sweep glitter (the badge shows hits left) · 🧳 Smash flight cases (1 or 2 hits) · 🔌 Cut cables off locked tiles ·
 ⚡ Clear static (it spreads every turn you don't zap any) · 📀 Bring golden records down to the bottom ·
 🎸 Collect N of an instrument · 🪩 Create N of a special · 🎯 Reach a score.
 🔈 Speaker stacks are walls that can't be broken. Board shapes vary.
@@ -38,7 +38,7 @@ Controls: drag or click two tiles to swap, click a special twice to fire it wher
 - **Rockets pick their own targets** using your goals, so 2×2 squares are always worth making.
 - **Daily Gig:** one generated stage per day, the same for everyone. **Jam Session:** a 60-second score blitz;
   each special you make adds +1s and an Encore adds +5s.
-- **Boosters** are earned, never bought: 🥁 Drumstick (smash one cell), 💥 Pyro (place a bomb), 🔀 Remix, ⏱ +5 moves.
+- **Boosters** are earned, never bought: 🥁 Drumstick (smash one cell), 💣 Bomb (place a bomb), 🔀 Remix, ⏱ +5 moves.
   You get one as a fan gift for a new best, two for 3 stars.
 
 ## Procedural levels

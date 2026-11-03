@@ -10,7 +10,8 @@ const COLORS = [
   { name: 'Trumpet', emoji: '🎺', c1: '#fff07a', c2: '#c79600' },
   { name: 'Sax',     emoji: '🎷', c1: '#52f5b0', c2: '#0a8f58' },
 ];
-const SPECIAL_ICON = { line: '🔦', lineH: '🔦', lineV: '🔦', bomb: '💥', rocket: '🚀', disco: '🪩' };
+const SPECIAL_ICON = { line: '↔', lineH: '↔', lineV: '↕', bomb: '💣', rocket: '🚀', disco: '🪩' };
+const SPECIAL_NAME = { lineH: 'LASER', lineV: 'LASER', bomb: 'BOMB', rocket: 'ROCKET', disco: 'DISCO BALL' };
 const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
 const DPR = Math.min(2, window.devicePixelRatio || 1);
 const $ = s => document.querySelector(s);
@@ -462,6 +463,7 @@ async function clearGroups(groups, pref) {
       nt.fresh = true; nt.pop = 1;
       G.grid[y][x] = nt;
       sparkle(x, y, '#fff', 12); Sfx.create();
+      floatText(x, y - 0.35, SPECIAL_NAME[type] + '!', '#fff', 0.34);
       for (const gl of G.goals) if (gl.type === 'make' && (gl.special === type || (gl.special === 'line' && type.startsWith('line'))) && gl.have < gl.need) gl.have++;
       if (G.mode === 'jam') { G.timeLeft += 1; floatText(x, y - 0.6, '+1s', '#4ff3ff', 0.38); }
       pts += 200;
@@ -868,42 +870,47 @@ function tileSprite(t, ts) {
     g.addColorStop(0, col.c1); g.addColorStop(1, col.c2);
     x.fillStyle = g; roundRect(x, p, p, w, w, r); x.fill();
     x.save(); roundRect(x, p, p, w, w, r); x.clip();
-    if (t.special === 'lineH' || t.special === 'lineV') {
-      x.fillStyle = 'rgba(255,255,255,0.45)';
-      for (let i = 0; i < 3; i++) {
-        const o = p + w * (0.2 + i * 0.3) - ts * 0.05;
-        if (t.special === 'lineH') x.fillRect(p, o, w, ts * 0.1); else x.fillRect(o, p, ts * 0.1, w);
-      }
-    }
-    if (t.special === 'bomb') {
-      const rg = x.createRadialGradient(ts / 2, ts / 2, ts * 0.1, ts / 2, ts / 2, ts * 0.5);
-      rg.addColorStop(0, 'rgba(255,255,255,0.65)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
-      x.fillStyle = rg; x.fillRect(0, 0, ts, ts);
-    }
     x.fillStyle = 'rgba(255,255,255,0.22)'; roundRect(x, p + w * 0.1, p + w * 0.05, w * 0.8, w * 0.36, r * 0.8); x.fill();
     x.restore();
     x.strokeStyle = t.special ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.35)';
     x.lineWidth = ts * (t.special ? 0.055 : 0.03); roundRect(x, p, p, w, w, r); x.stroke();
-    x.save();
-    x.globalAlpha = ICON_ALPHA;
-    x.drawImage(lightGlyph(col.emoji, ts), 0, 0, ts, ts);
-    x.restore();
-    const badge = (emo, bx, by) => {
-      x.fillStyle = 'rgba(20,6,40,0.85)'; x.beginPath(); x.arc(bx, by, ts * 0.17, 0, 7); x.fill();
-      x.fillStyle = '#fff'; x.font = `${ts * 0.22}px ${EMOJI_FONT}`; x.fillText(emo, bx, by + ts * 0.01);
-    };
-    if (t.special === 'lineH' || t.special === 'lineV') {
+    if (!t.special) {
+      x.save();
+      x.globalAlpha = ICON_ALPHA;
+      x.drawImage(lightGlyph(col.emoji, ts), 0, 0, ts, ts);
+      x.restore();
+    } else if (t.special === 'lineH' || t.special === 'lineV') {
+      // laser: a glowing beam with an arrowhead at each end, pointing the way it fires
+      x.save();
+      x.translate(ts / 2, ts / 2);
+      if (t.special === 'lineV') x.rotate(Math.PI / 2);
+      const L = ts * 0.4, hw = ts * 0.065, ah = ts * 0.15;
+      x.shadowColor = '#fff'; x.shadowBlur = ts * 0.12;
       x.fillStyle = '#fff';
-      const tri = (ax, ay, bx2, by2, cx, cy) => { x.beginPath(); x.moveTo(ax, ay); x.lineTo(bx2, by2); x.lineTo(cx, cy); x.fill(); };
-      const m = ts / 2, e = p + ts * 0.02, s = ts * 0.1;
-      if (t.special === 'lineH') { tri(e, m, e + s, m - s, e + s, m + s); tri(ts - e, m, ts - e - s, m - s, ts - e - s, m + s); }
-      else { tri(m, e, m - s, e + s, m + s, e + s); tri(m, ts - e, m - s, ts - e - s, m + s, ts - e - s); }
+      x.beginPath();
+      x.moveTo(-L, 0); x.lineTo(-L + ah, -ah); x.lineTo(-L + ah, -hw); x.lineTo(L - ah, -hw); x.lineTo(L - ah, -ah);
+      x.lineTo(L, 0); x.lineTo(L - ah, ah); x.lineTo(L - ah, hw); x.lineTo(-L + ah, hw); x.lineTo(-L + ah, ah);
+      x.closePath(); x.fill();
+      x.restore();
+    } else {
+      // bomb / rocket: one big, solid, unmistakable symbol
+      x.save();
+      x.shadowColor = 'rgba(20,0,40,0.55)'; x.shadowBlur = ts * 0.08; x.shadowOffsetY = ts * 0.03;
+      x.fillStyle = '#000'; x.font = `${ts * 0.58}px ${EMOJI_FONT}`;
+      x.fillText(t.special === 'bomb' ? '💣' : '🚀', ts / 2, ts * 0.54);
+      x.restore();
     }
-    if (t.special === 'bomb') badge('💥', ts * 0.76, ts * 0.76);
-    if (t.special === 'rocket') badge('🚀', ts * 0.76, ts * 0.24);
   }
   spriteCache.set(key, c);
   return c;
+}
+
+// A data-URL picture of a special tile, so the UI legend shows exactly what's on the board.
+const specialImgCache = {};
+function specialImg(sp, cls = 'sp-img') {
+  const key = sp === 'line' ? 'lineH' : sp;
+  if (!specialImgCache[key]) specialImgCache[key] = tileSprite({ kind: 'n', color: key === 'disco' ? -1 : 2, special: key }, 48).toDataURL();
+  return `<img class="${cls}" src="${specialImgCache[key]}" alt="${SPECIAL_NAME[key] || key}">`;
 }
 
 const noiseFrames = [];
@@ -965,12 +972,31 @@ function drawCell(x, y, cell) {
   ctx.fillStyle = (x + y) % 2 ? 'rgba(46,26,92,0.82)' : 'rgba(34,18,70,0.82)';
   ctx.fillRect(px, py, ts, ts);
   if (cell.jelly) {
-    const a = cell.jelly === 2 ? 0.6 : 0.32, tw = 0.5 + 0.5 * Math.sin(clock * 3 + x + y * 1.7);
-    ctx.fillStyle = `rgba(255,120,220,${a})`; roundRect(ctx, px + 2, py + 2, ts - 4, ts - 4, ts * 0.16); ctx.fill();
-    ctx.strokeStyle = cell.jelly === 2 ? '#ffd1f6' : 'rgba(255,170,240,0.8)'; ctx.lineWidth = cell.jelly === 2 ? 3 : 1.5; ctx.stroke();
-    ctx.fillStyle = `rgba(255,255,255,${0.4 + tw * 0.5})`;
-    for (let i = 0; i < cell.jelly * 2; i++) { const sx = px + ts * (0.15 + ((i * 37 + x * 13) % 70) / 100), sy = py + ts * (0.15 + ((i * 53 + y * 7) % 70) / 100); ctx.fillRect(sx, sy, 2, 2); }
+    ctx.fillStyle = cell.jelly === 2 ? 'rgba(255,200,60,0.75)' : 'rgba(255,90,210,0.7)';
+    roundRect(ctx, px + 1, py + 1, ts - 2, ts - 2, ts * 0.18); ctx.fill();
   }
+}
+
+const GLITTER = { 1: { line: '#ff7ae0', glow: '#ff4fd8' }, 2: { line: '#ffd84f', glow: '#ffb000' } };
+// Drawn on top of tiles: a glowing outline plus a badge with the number of hits still needed.
+function drawGlitter(x, y, cell) {
+  const { ts, bx, by } = view, px = bx + x * ts, py = by + y * ts, g = GLITTER[cell.jelly];
+  ctx.save();
+  ctx.shadowColor = g.glow; ctx.shadowBlur = ts * 0.15;
+  ctx.strokeStyle = g.line; ctx.lineWidth = ts * (cell.jelly === 2 ? 0.075 : 0.055);
+  roundRect(ctx, px + ts * 0.05, py + ts * 0.05, ts * 0.9, ts * 0.9, ts * 0.22); ctx.stroke();
+  ctx.shadowBlur = 0;
+  // sparkles in two corners
+  ctx.fillStyle = '#fff';
+  const star = (sx, sy, r) => { ctx.beginPath(); ctx.moveTo(sx, sy - r); ctx.lineTo(sx + r * 0.3, sy - r * 0.3); ctx.lineTo(sx + r, sy); ctx.lineTo(sx + r * 0.3, sy + r * 0.3); ctx.lineTo(sx, sy + r); ctx.lineTo(sx - r * 0.3, sy + r * 0.3); ctx.lineTo(sx - r, sy); ctx.lineTo(sx - r * 0.3, sy - r * 0.3); ctx.closePath(); ctx.fill(); };
+  star(px + ts * 0.86, py + ts * 0.86, ts * 0.08);
+  // hits-needed badge
+  const r = ts * 0.15, cx = px + ts * 0.16, cy = py + ts * 0.16;
+  ctx.fillStyle = g.line; ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(30,0,40,0.7)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#2a0533'; ctx.font = `900 ${ts * 0.2}px ui-rounded, "SF Pro Rounded", system-ui`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(cell.jelly), cx, cy + ts * 0.01);
+  ctx.restore();
 }
 
 function drawBlock(x, y, b) {
@@ -986,6 +1012,10 @@ function drawBlock(x, y, b) {
     if (b.hp >= 2) { ctx.fillStyle = '#ffcc33'; ctx.fillRect(px + p, py + ts * 0.36, ts - 2 * p, ts * 0.1); ctx.fillRect(px + p, py + ts * 0.56, ts - 2 * p, ts * 0.1); }
     ctx.fillStyle = '#e9edf7'; ctx.font = `900 ${ts * 0.17}px ui-rounded, system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(b.hp >= 2 ? '' : 'GEAR', px + ts / 2, py + ts / 2);
+    if (b.hp >= 2) {
+      ctx.fillStyle = '#ffcc33'; ctx.beginPath(); ctx.arc(px + ts * 0.16, py + ts * 0.16, ts * 0.15, 0, 7); ctx.fill();
+      ctx.fillStyle = '#2a1a00'; ctx.font = `900 ${ts * 0.2}px ui-rounded, system-ui`; ctx.fillText('2', px + ts * 0.16, py + ts * 0.17);
+    }
   } else {
     ctx.save(); roundRect(ctx, px + p, py + p, ts - 2 * p, ts - 2 * p, ts * 0.12); ctx.clip();
     ctx.imageSmoothingEnabled = false;
@@ -1004,16 +1034,18 @@ function drawTile(t, alpha = 1, scale = 1) {
   const h = input.hint;
   if (h && input.idle > 5.5 && (t === h.a || t === h.b)) { s *= 1 + Math.sin(clock * 10) * 0.07; }
   if (input.sel && !G.busy && input.sel.x === t.x && input.sel.y === t.y && t.ad === 0) s *= 1.08 + Math.sin(clock * 8) * 0.03;
-  if (t.special === 'bomb') s *= 1 + Math.sin(clock * 6 + t.id) * 0.04;
+  const lively = Save.data.hints;   // hints off = specials sit still too
+  if (lively && t.special === 'bomb') s *= 1 + Math.sin(clock * 6 + t.id) * 0.04;
   const sq = t.squash * 0.14;
   const cx = bx + (x + 0.5) * ts, cy = by + (y + 0.5) * ts + sq * ts * 0.4;
   ctx.save(); ctx.globalAlpha = alpha; ctx.translate(cx, cy);
   if (t.special === 'disco') {
-    ctx.save(); ctx.rotate(clock * 1.5); ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 6; i++) { ctx.rotate(Math.PI / 3); ctx.fillStyle = `hsla(${(i * 60 + clock * 120) % 360},100%,70%,0.35)`; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(ts * 0.75, -ts * 0.08); ctx.lineTo(ts * 0.75, ts * 0.08); ctx.fill(); }
+    const spin = lively ? clock : 0;
+    ctx.save(); ctx.rotate(spin * 1.5); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) { ctx.rotate(Math.PI / 3); ctx.fillStyle = `hsla(${(i * 60 + spin * 120) % 360},100%,70%,0.35)`; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(ts * 0.75, -ts * 0.08); ctx.lineTo(ts * 0.75, ts * 0.08); ctx.fill(); }
     ctx.restore();
   }
-  if (t.special === 'rocket') ctx.rotate(Math.sin(clock * 9 + t.id) * 0.06);
+  if (lively && t.special === 'rocket') ctx.rotate(Math.sin(clock * 9 + t.id) * 0.06);
   ctx.scale(s * (1 + sq), s * (1 - sq));
   ctx.drawImage(tileSprite(t, ts), -ts / 2, -ts / 2, ts, ts);
   ctx.restore();
@@ -1052,6 +1084,7 @@ function drawBoard() {
   eachTile(t => drawTile(t));
   for (const d of FX.dying) { const p = d.life / d.max; drawTile(d.t, p, 0.3 + p * 0.8); }
   ctx.restore();
+  for (let y = 0; y < G.H; y++) for (let x = 0; x < G.W; x++) { const c = G.cells[y][x]; if (c.jelly && !c.hole) drawGlitter(x, y, c); }
   for (let y = 0; y < G.H; y++) for (let x = 0; x < G.W; x++) { const b = G.cells[y][x].block; if (b) drawBlock(x, y, b); }
   if (input.sel && !G.busy) {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.shadowColor = '#fff'; ctx.shadowBlur = 12;
@@ -1207,7 +1240,7 @@ function goalIcon(g) {
     case 'lock': return '<span class="gi">🔌</span>';
     case 'static': return '<span class="gi">⚡</span>';
     case 'drop': return '<span class="gi">📀</span>';
-    case 'make': return `<span class="gi">${SPECIAL_ICON[g.special]}</span>`;
+    case 'make': return `<span class="gi">${specialImg(g.special, 'gi-img')}</span>`;
     case 'score': return '<span class="gi">🎯</span>';
   }
   return '';
@@ -1218,9 +1251,9 @@ function goalChip(g) {
   return `<div class="goal ${rem === 0 ? 'done' : ''}">${goalIcon(g)}<span class="gn">${rem === 0 ? '✓' : label}</span></div>`;
 }
 const GOAL_TEXT = {
-  collect: g => `Collect ${g.need} ${COLORS[g.color].emoji}`, jelly: () => 'Sweep up all the ✨ glitter', crate: () => 'Smash every 🧳 flight case',
+  collect: g => `Collect ${g.need} ${COLORS[g.color].emoji}`, jelly: () => 'Clear all the ✨ glitter (the badge shows hits left)', crate: () => 'Smash every 🧳 flight case',
   lock: () => 'Cut all 🔌 cables', static: () => 'Clear all ⚡ static', drop: g => `Bring down ${g.need} 📀 records`,
-  make: g => `Create ${g.need} ${SPECIAL_ICON[g.special]} ${{ disco: 'disco balls', bomb: 'pyro bombs', rocket: 'rockets', line: 'lasers' }[g.special]}`,
+  make: g => `Create ${g.need} ${{ disco: 'disco balls', bomb: 'bombs', rocket: 'rockets', line: 'lasers' }[g.special]}`,
   score: g => `Score ${fmt(g.need)} points`,
 };
 
@@ -1351,7 +1384,7 @@ function startGig(def, mode) {
 
 function showWin(stars, reward) {
   const d = G.def, next = d.n ? d.n + 1 : null;
-  const names = { hammer: '🥁 Drumstick', pyro: '💥 Pyro', shuffle: '🔀 Remix', moves: '⏱ +5 Moves' };
+  const names = { hammer: '🥁 Drumstick', pyro: '💣 Bomb', shuffle: '🔀 Remix', moves: '⏱ +5 Moves' };
   const html = `<h2 class="win">${['', 'Good show!', 'Great gig!', 'LEGENDARY!'][stars]}</h2>
     <div class="stars">${[1, 2, 3].map(i => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${i * 0.25}s">★</span>`).join('')}</div>
     <div class="big-score">${fmt(G.score)}</div>
@@ -1366,7 +1399,7 @@ function showWin(stars, reward) {
 
 function pauseMenu() {
   if (!G || G.over) return;
-  modal(`<h2>Paused</h2>${HOWTO}`, [
+  modal(`<h2>Paused</h2>${howto()}`, [
     { label: '▶ Resume', cls: 'primary', fn: hideModal },
     { label: '⚙ Settings', fn: () => settingsMenu(pauseMenu) },
     { label: '↻ Restart', fn: () => startGig(G.def, G.mode) },
@@ -1387,15 +1420,18 @@ function settingsMenu(back) {
   $('#modal-card h2').insertAdjacentHTML('afterend', `<p class="sub">Progress saves automatically after every gig${window.__ENCORE_SAVE_PATH ? ` to<br><code>${window.__ENCORE_SAVE_PATH}</code>` : ' in this browser'}.</p>`);
 }
 
-const HOWTO = `<div class="howto">
-  <div><b>Match 4 in a line</b><span>🔦 Laser: clears a row or column (follow the stripes)</span></div>
-  <div><b>Match a 2×2 square</b><span>🚀 Rocket: hits around itself, then flies to what you still need</span></div>
-  <div><b>Match an L or T</b><span>💥 Pyro: a big blast</span></div>
-  <div><b>Match 5 in a line</b><span>🪩 Disco ball: swap it to clear one colour</span></div>
-  <div><b>Swap two specials</b><span>🔦+🔦 cross · 🔦+💥 triple cross · 💥+💥 mega blast · 🚀+any: rocket delivers it · 🪩+any: every tile of that colour turns into that special · 🪩+🪩 clears the stage</span></div>
+function howto() {
+  return `<div class="howto">
+  <div class="sp-row">${specialImg('lineH')}<span><b>Laser</b> · match 4 in a line. Clears the whole row or column the arrow points along.</span></div>
+  <div class="sp-row">${specialImg('rocket')}<span><b>Rocket</b> · match a 2×2 square. Hits around itself, then flies to what you still need.</span></div>
+  <div class="sp-row">${specialImg('bomb')}<span><b>Bomb</b> · match an L or T shape. Blows up a big area around it.</span></div>
+  <div class="sp-row">${specialImg('disco')}<span><b>Disco ball</b> · match 5 in a line. Swap it with a tile to clear every tile of that colour.</span></div>
+  <div><b>Swap two specials</b><span>Laser+laser = cross · laser+bomb = triple cross · bomb+bomb = mega blast · rocket+anything = the rocket carries it · disco+special = every tile of that colour becomes that special · disco+disco = clears the stage</span></div>
+  <div><b>Glitter ✨</b><span>Clear the tile on top of it. The badge shows how many hits are left: pink <b>1</b>, gold <b>2</b>.</span></div>
   <div><b>Tap a special twice</b><span>Fires it where it stands (costs a move)</span></div>
   <div><b>HYPE meter</b><span>Fill it with cascades for ENCORE MODE: double points for 3 moves and free specials</span></div>
 </div>`;
+}
 
 // ============================================================ input
 function cellAt(e) {
@@ -1445,7 +1481,7 @@ function bindInput() {
   $('#btn-jam').onclick = () => { Sfx.init(); Sfx.click(); startGig(jamDef(), 'jam'); };
   $('#continue').onclick = () => { Sfx.init(); Sfx.click(); openGig(Save.highest() + 1); };
   $('#btn-settings').onclick = () => { Sfx.init(); Sfx.click(); settingsMenu(hideModal); };
-  $('#btn-howto').onclick = () => { Sfx.init(); Sfx.click(); modal(`<h2>How to rock</h2>${HOWTO}`, [{ label: 'Got it', cls: 'primary', fn: hideModal }]); };
+  $('#btn-howto').onclick = () => { Sfx.init(); Sfx.click(); modal(`<h2>How to rock</h2>${howto()}`, [{ label: 'Got it', cls: 'primary', fn: hideModal }]); };
   document.querySelectorAll('.booster').forEach(el => { el.onclick = () => armBooster(el.dataset.b); });
 }
 function toggleMute() {
